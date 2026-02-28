@@ -17,3 +17,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 clap = { workspace = true }
+
+# Additional dependencies
+uuid = "1"
+chrono = { version = "0.4", features = ["serde"] }

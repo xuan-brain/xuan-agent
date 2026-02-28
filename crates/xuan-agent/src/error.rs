@@ -21,6 +21,10 @@ pub enum Error {
     #[error("LLM 错误: {0}")]
     Llm(String),
 
+    /// 嵌入相关错误
+    #[error("嵌入错误: {0}")]
+    Embedding(String),
+
     /// IO 错误
     #[error("IO 错误: {0}")]
     Io(#[from] std::io::Error),

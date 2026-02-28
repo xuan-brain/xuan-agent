@@ -32,3 +32,9 @@ clap = { version = "4", features = ["derive"] }
 
 # HTTP 客户端
 reqwest = { version = "0.13", features = ["json"] }
+
+# 数据库
+surrealdb = "3"
+
+# 向量与相似度计算
+ndarray = "0.15"

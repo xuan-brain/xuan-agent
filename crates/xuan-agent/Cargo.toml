@@ -14,6 +14,15 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }
 
+# Additional dependencies
+chrono = { version = "0.4", features = ["serde"] }
+surrealdb = { workspace = true }
+surrealdb-types = "3"
+ndarray = "0.15"
+
+# PDF 解析
+pdf-extract = "0.7"
+
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
