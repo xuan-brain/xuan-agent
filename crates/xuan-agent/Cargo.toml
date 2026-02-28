@@ -1,0 +1,26 @@
+[package]
+name = "xuan-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+rig-core = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true }
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[[example]]
+name = "mcp_demo"
+path = "examples/mcp_demo.rs"
+
+[[example]]
+name = "literature_mcp_demo"
+path = "examples/literature_mcp_demo.rs"

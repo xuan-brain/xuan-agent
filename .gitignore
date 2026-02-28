@@ -1,2 +1,22 @@
+# Rust
 /target
+**/*.rs.bk
+*.pdb
+
+# 配置文件（包含敏感信息）
 .env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
