@@ -99,6 +99,11 @@ impl XuanAgent {
         self.mcp_host.start_server(name, command).await
     }
 
+    /// 添加 HTTP MCP 服务器 (Streamable HTTP)
+    pub async fn add_http_mcp_server(&mut self, name: &str, url: &str) -> Result<()> {
+        self.mcp_host.add_http_server(name, url).await
+    }
+
     /// 获取 MCP Host 引用
     pub fn mcp_host(&self) -> &McpHost {
         &self.mcp_host

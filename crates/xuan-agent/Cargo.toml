@@ -24,3 +24,7 @@ path = "examples/mcp_demo.rs"
 [[example]]
 name = "literature_mcp_demo"
 path = "examples/literature_mcp_demo.rs"
+
+[[example]]
+name = "zotero_mcp_demo"
+path = "examples/zotero_mcp_demo.rs"

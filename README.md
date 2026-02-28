@@ -9,6 +9,8 @@
 - P0-Sprint 2: 基础功能完善 ✅
 - 系统提示词优化 ✅
 - 文献管理 MCP 集成 ✅
+- Streamable HTTP MCP 传输 ✅
+- Zotero MCP 集成 ✅
 
 ## 项目结构
 
@@ -21,16 +23,17 @@ xuan-agent/
 │   │   ├── error.rs        # 错误类型
 │   │   ├── llm.rs          # LLM 服务
 │   │   ├── tools.rs         # 工具系统
-│   │   └── mcp/            # MCP 协议
-│   │       └── host.rs     # MCP Host
+│   │   └── mcp/
+│   │       └── host.rs     # MCP Host (支持 Stdio + HTTP)
 │   ├── xuan-agent-cli/     # CLI 工具
 │   └── examples/
-│       ├── mcp_demo.rs           # 基本 MCP 演示
-│       └── literature_mcp_demo.rs # 文献管理演示
+│       ├── mcp_demo.rs              # 基本 MCP 演示
+│       ├── literature_mcp_demo.rs   # 文献管理演示
+│       └── zotero_mcp_demo.rs       # Zotero MCP 演示
 ├── tests/
 │   └── mcp-servers/
-│       ├── test_server.py         # 测试 MCP 服务器
-│       └── literature_server.py   # 文献管理 MCP 服务器
+│       ├── test_server.py           # 测试 MCP 服务器
+│       └── literature_server.py     # 文献管理 MCP 服务器
 ├── docs/                   # 项目文档
 └── [配置文件]
 ```
@@ -72,11 +75,15 @@ $ mcp test echo {"message": "Hello"}
 ### 3. MCP 演示
 
 ```bash
-# 基本 MCP 演示
+# 基本 MCP 演示 (Stdio)
 cargo run -p xuan-agent --example mcp_demo
 
-# 文献管理 MCP 演示
+# 文献管理 MCP 演示 (Stdio)
 cargo run -p xuan-agent --example literature_mcp_demo
+
+# Zotero MCP 演示 (Streamable HTTP)
+# 前置条件: 安装 Zotero MCP 插件并启用服务器
+cargo run -p xuan-agent --example zotero_mcp_demo
 ```
 
 ### 4. 测试
@@ -99,12 +106,15 @@ async fn main() -> xuan_agent::Result<()> {
     let response = agent.chat("你好").await?;
     println!("{}", response);
 
-    // 添加 MCP 服务器
+    // 添加 Stdio MCP 服务器
     agent.add_mcp_server("test", "python3 tests/mcp-servers/test_server.py").await?;
+
+    // 添加 HTTP MCP 服务器 (如 Zotero MCP)
+    agent.add_http_mcp_server("zotero", "http://127.0.0.1:23120/mcp").await?;
 
     // 调用 MCP 工具
     let result = agent.mcp_host_mut()
-        .call_tool("test", "echo", serde_json::json!({"message": "Hello"}))
+        .call_tool("zotero", "search_library", serde_json::json!({"q": "AI"}))
         .await?;
 
     Ok(())
@@ -153,17 +163,27 @@ async fn main() -> xuan_agent::Result<()> {
 3. **MCP 协议**
    - MCP Host 实现
    - JSON-RPC 2.0 通信
+   - **Stdio 传输** (子进程通信)
+   - **HTTP 传输** (Streamable HTTP)
    - 多服务器管理
    - 测试服务器
 
 4. **文献管理** (演示)
+   - 模拟文献管理系统
    - 搜索文献
    - 获取文献详情
    - 添加新文献
    - 导出引用 (BibTeX/APA)
    - 列出文献集合
 
-5. **CLI 工具**
+5. **Zotero 集成**
+   - Zotero MCP 连接
+   - 文献库搜索
+   - 按年份/标签筛选
+   - 通过 DOI/ISBN 查找
+   - 获取文献详情
+
+6. **CLI 工具**
    - 交互式对话
    - MCP 工具调用
    - 工具列表查看
