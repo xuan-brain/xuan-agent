@@ -1,153 +1,818 @@
-这是针对 **P0 阶段（基础设施与原型）** 的详细实施计划。本阶段的核心目标是**跑通最小可行性闭环**：用户通过自然语言与 Agent 对话，Agent 能够调用本地 Zotero 文献库并返回准确的检索结果。
+# P0 阶段实施计划：核心框架搭建
+
+根据《XuanAgent 开发实施计划》，本文档详细规划 P0 阶段（第1-2个月）的实施细节。本阶段的核心目标是**搭建 lib 核心架构，实现基础对话能力，提供 CLI 工具**。
+
 ---
-## P0 阶段实施计划：基础设施与原型
-### 一、 阶段目标与验收标准
-**核心目标**：
-搭建基于 Rust + Rig 的 Agent 后端骨架，实现 MCP Host 功能，成功集成开源的 Zotero MCP，完成“对话即检索”的 MVP（最小可用产品）演示。
-**验收标准**：
-1.  **环境验收**：能够一键启动后端服务、前端界面以及 Zotero MCP 服务。
-2.  **功能验收**：
-    -   用户输入：“帮我找一下关于‘深度学习在药物发现中的应用’的论文”。
-    -   Agent 成功识别意图，调用 Zotero MCP。
-    -   返回包含标题、作者、年份的文献列表，并在前端展示。
-3.  **代码验收**：核心模块通过单元测试，API 接口通过 Postman/cURL 测试。
+
+## 一、阶段目标与验收标准
+
+### 核心目标
+
+搭建基于 Rust + Rig 的 **XuanAgent 库**，实现 MCP Host 功能，成功集成开源的文献管理 MCP（以 Zotero MCP 为示例），完成基础的对话能力演示。
+
+**说明**：XuanAgent 是通用的科研助手，可以与多种文献管理工具集成。Zotero 仅作为开发测试的示例实现，用户可以根据需要集成其他文献管理工具（如 EndNote、Mendeley、Papers 等）。
+
+**关键特点**：
+- 📚 **核心是 lib**：可以嵌入到其他软件项目中
+- 🛠️ **提供 CLI 工具**：用于开发测试和独立运行
+- 💾 **统一配置管理**：通过 .env 文件配置 AI Provider
+- 🔌 **MCP 协议支持**：实现标准的 MCP Host
+
+### 验收标准
+
+#### 1. 环境验收
+- ✅ 能够编译整个 workspace（lib + cli）
+- ✅ 能够运行 CLI 工具并进行基础对话
+- ✅ 能够通过 .env 文件配置 AI Provider
+- ✅ 能够启动并连接文献管理 MCP 服务（以 Zotero 为示例）
+
+#### 2. 功能验收
+- ✅ **基础对话**：
+  ```
+  $ xuan-agent-cli chat "你好"
+  你好！我是 XuanAgent，你的科研助手。
+  ```
+  
+- ✅ **文献检索**：
+  ```
+  $ xuan-agent-cli chat "帮我找关于 Rust 的论文"
+  我为你找到了 3 篇相关文献...
+  ```
+
+#### 3. 代码验收
+- ✅ lib crate 通过单元测试
+- ✅ CLI 工具能够正常运行
+- ✅ 配置加载正确（从 .env 文件）
+- ✅ MCP Host 能够连接外部 MCP 服务器
+
 ---
-### 二、 Sprint 1 详细计划（第 1-2 周）：核心骨架搭建
-**目标**：完成后端项目初始化，实现 Rig Agent 基础对话能力，跑通 MCP 协议通信。
-#### 1. 任务分解
-| 任务ID | 任务描述 | 负责模块 | 关键产出 |
-| :--- | :--- | :--- | :--- |
-| **T1.1** | **Rust Workspace 初始化** | Project Setup | `Cargo.toml` (workspace), 目录结构 (`crates/core`, `crates/mcp-host` 等) |
-| **T1.2** | **Rig Agent 核心封装** | `core-agent` | `AgentBuilder`, `ChatRequest`, `ChatResponse` 结构体，支持 OpenAI API 调用 |
-| **T1.3** | **MCP Host 协议实现** | `mcp-host` | 实现 `McpClient` trait，封装 JSON-RPC 2.0 消息解析 |
-| **T1.4** | **Stdio 传输层实现** | `mcp-host` | 实现通过标准输入/输出与子进程通信的能力（用于连接 Zotero MCP） |
-| **T1.5** | **配置管理** | `config` | 支持 `.env` 文件读取 (API Keys, Zotero 路径等) |
-#### 2. 技术实现细节
-**目录结构设计**：
+
+## 二、Sprint 1 详细计划（第 1-2 周）：项目初始化与核心架构
+
+### 目标
+完成后端项目初始化，搭建 workspace 结构，实现 Rig Agent 基础对话能力，配置 .env 支持。
+
+### 1. 任务分解
+
+| 任务ID | 任务描述 | 负责模块 | 关键产出 | 预计时间 |
+| :--- | :--- | :--- | :--- | :--- |
+| **T1.1** | **Rust Workspace 初始化** | Project Setup | `Cargo.toml` (workspace), 目录结构 | 0.5 天 |
+| **T1.2** | **创建 xuan-agent lib crate** | `xuan-agent` | `lib.rs`, 基础结构体定义 | 1 天 |
+| **T1.3** | **创建 xuan-agent-cli bin crate** | `xuan-agent-cli` | `main.rs`, 基础 CLI 框架 | 0.5 天 |
+| **T1.4** | **集成 Rig 框架** | `xuan-agent` | LLM Provider 集成，基础对话能力 | 2 天 |
+| **T1.5** | **配置管理实现** | `xuan-agent` | `.env` 文件读取，`Config` 结构体 | 1 天 |
+| **T1.6** | **编写单元测试** | `xuan-agent` | 基础功能的单元测试 | 1 天 |
+
+### 2. 技术实现细节
+
+#### 目录结构设计
 ```text
-sci-agent/
-├── Cargo.toml
-├── .env.example
+xuan-agent/
+├── Cargo.toml                 # Workspace 配置
+├── .env                       # AI Provider 配置（测试用）
+├── .env.example               # 配置模板
+├── .gitignore
+│
 ├── crates/
-│   ├── core-agent/         # Agent 核心逻辑
-│   │   ├── src/
-│   │   │   ├── lib.rs
-│   │   │   └── agent.rs    # Rig Agent 封装
-│   │   └── Cargo.toml
-│   └── mcp-host/           # MCP 客户端
-│       ├── src/
-│       │   ├── lib.rs
-│       │   ├── protocol.rs # JSON-RPC 定义
-│       │   └── transport.rs # 进程通信实现
-│       └── Cargo.toml
-└── src/
-    └── main.rs             # 主入口
+│   ├── xuan-agent/           # 核心 lib crate
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs        # 库入口
+│   │       ├── agent.rs      # Agent 核心逻辑
+│   │       ├── config.rs     # 配置管理
+│   │       └── error.rs      # 错误定义
+│   │
+│   └── xuan-agent-cli/       # CLI 应用（bin crate）
+│       ├── Cargo.toml
+│       └── src/
+│           └── main.rs       # 命令行入口
+│
+├── tests/                    # 集成测试
+│   └── integration_test.rs
+│
+└── docs/                     # 文档
+    ├── README.md
+    └── plan-p0.md
 ```
-**MCP Host 关键逻辑 (Rust伪代码)**：
+
+#### Workspace 配置
+```toml
+# Cargo.toml
+[workspace]
+members = [
+    "crates/xuan-agent",
+    "crates/xuan-agent-cli",
+]
+resolver = "2"
+
+[workspace.dependencies]
+rig = "0.5"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "1"
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+```
+
+#### 核心 lib API 设计
 ```rust
-// crates/mcp-host/src/transport.rs
+// crates/xuan-agent/src/lib.rs
+
+//! XuanAgent - 科研 AI Agent 库
+//!
+//! # Example
+//!
+//! ```rust
+//! use xuan_agent::{XuanAgent, Config};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<()> {
+//!     // 从 .env 加载配置
+//!     let config = Config::from_env()?;
+//!     
+//!     // 创建 Agent 实例
+//!     let mut agent = XuanAgent::new(config).await?;
+//!     
+//!     // 对话
+//!     let response = agent.chat("你好").await?;
+//!     println!("{}", response);
+//!     
+//!     Ok(())
+//! }
+//! ```
+
+pub mod agent;
+pub mod config;
+pub mod error;
+
+pub use agent::XuanAgent;
+pub use config::Config;
+pub use error::{Result, Error};
+```
+
+#### Agent 核心结构
+```rust
+// crates/xuan-agent/src/agent.rs
+
+use crate::{Config, Result};
+use rig::{completion::Chat, providers::openai};
+
+/// XuanAgent 核心结构
+pub struct XuanAgent {
+    config: Config,
+    llm: Box<dyn Chat>,
+}
+
+impl XuanAgent {
+    /// 创建新的 Agent 实例
+    pub async fn new(config: Config) -> Result<Self> {
+        // 初始化 LLM Provider
+        let llm = match &config.openai_api_key {
+            Some(key) => {
+                openai::Client::new(key)
+                    .agent(config.openai_model.as_deref().unwrap_or("gpt-4"))
+            }
+            None => return Err(Error::Config("OpenAI API key not found".into())),
+        };
+        
+        Ok(Self { config, llm: Box::new(llm) })
+    }
+    
+    /// 对话
+    pub async fn chat(&mut self, message: &str) -> Result<String> {
+        // 实现基础对话逻辑
+        let response = self.llm.chat(message, vec![]).await?;
+        Ok(response)
+    }
+    
+    /// 检查 Agent 是否就绪
+    pub fn is_ready(&self) -> bool {
+        true
+    }
+}
+```
+
+#### 配置管理
+```rust
+// crates/xuan-agent/src/config.rs
+
+use serde::Deserialize;
+use std::fs;
+
+/// XuanAgent 配置
+#[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    /// AI Provider 配置
+    pub ai_provider: AiProviderConfig,
+    
+    /// 数据库配置
+    pub db: DbConfig,
+}
+
+/// AI Provider 配置
+#[derive(Debug, Clone, Deserialize)]
+pub struct AiProviderConfig {
+    pub provider: String,
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+    pub description: Option<String>,
+}
+
+/// 数据库配置
+#[derive(Debug, Clone, Deserialize)]
+pub struct DbConfig {
+    pub connect: String,
+    pub user: String,
+    pub pass: String,
+    pub namespace: String,
+    pub database: String,
+}
+
+impl Config {
+    /// 从 JSON 格式的 .env 文件加载配置
+    pub fn from_env() -> crate::Result<Self> {
+        // 读取 JSON 格式的 .env 文件
+        let content = fs::read_to_string(".env")
+            .map_err(|e| crate::Error::Config(format!("Failed to read .env: {}", e)))?;
+        
+        let config: Config = serde_json::from_str(&content)
+            .map_err(|e| crate::Error::Config(format!("Failed to parse .env: {}", e)))?;
+        
+        Ok(config)
+    }
+    
+    /// 获取 LLM 配置
+    pub fn get_llm_config(&self) -> (&str, &str, &str) {
+        (&self.ai_provider.provider, &self.ai_provider.base_url, &self.ai_provider.model)
+    }
+    
+    /// 获取数据库连接 URL
+    pub fn get_db_url(&self) -> String {
+        format!("{}/db/{}", self.db.connect, self.db.database)
+    }
+}
+```
+
+#### CLI 工具实现
+```rust
+// crates/xuan-agent-cli/src/main.rs
+
+use xuan_agent::{XuanAgent, Config};
+use std::io::{self, BufRead, Write};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // 初始化日志
+    tracing_subscriber::fmt::init();
+    
+    // 加载配置
+    let config = Config::from_env()?;
+    
+    // 创建 Agent
+    let mut agent = XuanAgent::new(config).await?;
+    
+    println!("XuanAgent CLI v0.1.0");
+    println!("输入 'quit' 退出，输入 'help' 查看帮助\n");
+    
+    // 交互式对话循环
+    let stdin = io::stdin();
+    print!("> ");
+    io::stdout().flush()?;
+    
+    for line in stdin.lock().lines() {
+        let input = line?;
+        
+        if input == "quit" {
+            break;
+        }
+        
+        if input == "help" {
+            println!("命令:");
+            println!("  quit  - 退出程序");
+            println!("  help  - 显示帮助");
+            println!("  其他  - 与 Agent 对话");
+            print!("> ");
+            io::stdout().flush()?;
+            continue;
+        }
+        
+        // 发送消息给 Agent
+        match agent.chat(&input).await {
+            Ok(response) => {
+                println!("{}\n", response);
+            }
+            Err(e) => {
+                eprintln!("错误: {}\n", e);
+            }
+        }
+        
+        print!("> ");
+        io::stdout().flush()?;
+    }
+    
+    println!("再见！");
+    Ok(())
+}
+```
+
+### 3. .env 配置文件
+
+项目使用 **JSON 格式**的 .env 文件进行配置。
+
+```json
+{
+  "ai_provider": {
+    "provider": "siliconflow",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "api_key": "sk-xxxxx",
+    "model": "deepseek-ai/DeepSeek-V3",
+    "description": "硅基流动 DeepSeek 配置"
+  },
+  "db": {
+    "connect": "http://127.0.0.1:8000",
+    "user": "root",
+    "pass": "secret",
+    "namespace": "agent",
+    "database": "dev"
+  }
+}
+```
+
+**其他 AI Provider 配置示例**：
+
+OpenAI：
+```json
+{
+  "ai_provider": {
+    "provider": "openai",
+    "base_url": "https://api.openai.com/v1",
+    "api_key": "sk-xxxxx",
+    "model": "gpt-4"
+  },
+  "db": {
+    "connect": "http://127.0.0.1:8000",
+    "user": "root",
+    "pass": "secret",
+    "namespace": "agent",
+    "database": "dev"
+  }
+}
+```
+
+Anthropic：
+```json
+{
+  "ai_provider": {
+    "provider": "anthropic",
+    "base_url": "https://api.anthropic.com",
+    "api_key": "sk-ant-xxxxx",
+    "model": "claude-3-opus-20240229"
+  },
+  "db": {
+    "connect": "http://127.0.0.1:8000",
+    "user": "root",
+    "pass": "secret",
+    "namespace": "agent",
+    "database": "dev"
+  }
+}
+```
+
+本地模型（Ollama）：
+```json
+{
+  "ai_provider": {
+    "provider": "ollama",
+    "base_url": "http://localhost:11434",
+    "api_key": "",
+    "model": "llama2"
+  },
+  "db": {
+    "connect": "http://127.0.0.1:8000",
+    "user": "root",
+    "pass": "secret",
+    "namespace": "agent",
+    "database": "dev"
+  }
+}
+```
+
+### 4. 交付物
+
+- ✅ 可编译的 workspace 结构
+- ✅ 基础的 lib crate 框架
+- ✅ 简单的 CLI 工具（能输出 "Hello, XuanAgent!"）
+- ✅ `.env.example` 配置模板
+- ✅ 基础的单元测试
+- ✅ 项目 README 文档
+
+---
+
+## 三、Sprint 2 详细计划（第 3-4 周）：MCP Host 实现
+
+### 目标
+实现 MCP Host 基础协议，集成文献管理 MCP（以 Zotero MCP 为示例），实现 Agent 工具调用，完成端到端的文献检索演示。
+
+### 1. 任务分解
+
+| 任务ID | 任务描述 | 负责模块 | 关键产出 | 预计时间 |
+| :--- | :--- | :--- | :--- | :--- |
+| **T2.1** | **MCP Host 协议实现** | `mcp-host` | JSON-RPC 2.0 消息解析 | 2 天 |
+| **T2.2** | **Stdio 传输层实现** | `mcp-host` | 进程间通信实现 | 1 天 |
+| **T2.3** | **集成文献管理 MCP** | `integrations` | 启动和连接文献管理 MCP（以 Zotero 为示例） | 1 天 |
+| **T2.4** | **Rig Tool 适配器** | `xuan-agent` | MCP Tool 到 Rig Tool 的映射 | 2 天 |
+| **T2.5** | **意图识别优化** | `xuan-agent` | System Prompt 优化 | 1 天 |
+| **T2.6** | **集成测试** | `tests` | 端到端测试 | 1 天 |
+
+### 2. 技术实现细节
+
+#### MCP Host 结构
+```rust
+// crates/mcp-host/src/lib.rs
+
+use serde_json::Value;
+use std::collections::HashMap;
 use tokio::process::{Child, Command};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-pub struct StdioTransport {
+
+/// MCP Host - 管理多个 MCP Server 的连接
+pub struct McpHost {
+    servers: HashMap<String, McpServerConnection>,
+}
+
+/// MCP Server 连接
+struct McpServerConnection {
+    name: String,
     process: Child,
 }
-impl StdioTransport {
-    pub async fn start(command: &str) -> Self {
+
+impl McpHost {
+    pub fn new() -> Self {
+        Self {
+            servers: HashMap::new(),
+        }
+    }
+    
+    /// 启动 MCP Server
+    pub async fn start_server(&mut self, name: &str, command: &str) -> Result<()> {
         let mut child = Command::new(command)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .spawn()
-            .expect("Failed to start MCP server");
-        Self { process: child }
+            .stderr(Stdio::piped())
+            .spawn()?;
+        
+        let server = McpServerConnection {
+            name: name.to_string(),
+            process: child,
+        };
+        
+        self.servers.insert(name.to_string(), server);
+        Ok(())
     }
-    pub async fn send_request(&mut self, request: JsonRpcRequest) -> JsonRpcResponse {
-        // 序列化请求，写入 stdin，读取 stdout，反序列化响应
-        // ... 具体实现
+    
+    /// 调用 MCP Tool
+    pub async fn call_tool(
+        &mut self,
+        server: &str,
+        tool: &str,
+        params: Value,
+    ) -> Result<Value> {
+        let server_conn = self.servers.get_mut(server)
+            .ok_or(Error::ServerNotFound)?;
+        
+        // 构造 JSON-RPC 请求
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": tool,
+                "arguments": params,
+            }),
+            id: 1,
+        };
+        
+        // 发送请求并接收响应
+        let response = server_conn.send_request(request).await?;
+        Ok(response.result)
     }
 }
 ```
----
-### 三、 Sprint 2 详细计划（第 3-4 周）：文献检索闭环
-**目标**：集成 Zotero MCP，实现 Agent 工具调用，开发简单前端界面，完成端到端演示。
-#### 1. 任务分解
-| 任务ID | 任务描述 | 负责模块 | 关键产出 |
-| :--- | :--- | :--- | :--- |
-| **T2.1** | **集成 Zotero MCP** | `integrations` | 启动 `zotero-mcp` 服务，配置自动发现 |
-| **T2.2** | **Rig Tool 适配器开发** | `core-agent` | 实现 `McpToolWrapper`，将 MCP Tool 映射为 Rig Tool |
-| **T2.3** | **意图识别与规划** | `core-agent` | 优化 System Prompt，让 Agent 知道何时调用 `zotero_search` |
-| **T2.4** | **Web API 开发** | `api` | 使用 Axum 搭建后端，提供 `/api/chat` 接口 |
-| **T2.5** | **前端 UI 开发** | `web` | 初始化 React 项目，实现最简聊天界面 |
-#### 2. 技术实现细节
-**Rig Tool 适配器设计**：
-我们需要将 MCP Server 暴露的工具动态注册到 Rig Agent 中。
+
+#### Rig Tool 适配器
 ```rust
-// crates/core-agent/src/tools/mcp_adapter.rs
+// crates/xuan-agent/src/tools/mcp_adapter.rs
+
 use rig::completion::Tool;
 use serde_json::Value;
+use std::sync::Arc;
+
+/// MCP Tool 适配器 - 将 MCP Tool 映射为 Rig Tool
 pub struct McpToolAdapter {
     name: String,
     description: String,
-    parameters: Value, // JSON Schema
-    mcp_client: Arc<McpClient>,
+    parameters: Value,
+    mcp_host: Arc<tokio::sync::Mutex<McpHost>>,
+    server_name: String,
 }
+
+impl McpToolAdapter {
+    pub fn new(
+        name: String,
+        description: String,
+        parameters: Value,
+        mcp_host: Arc<tokio::sync::Mutex<McpHost>>,
+        server_name: String,
+    ) -> Self {
+        Self {
+            name,
+            description,
+            parameters,
+            mcp_host,
+            server_name,
+        }
+    }
+}
+
 impl Tool for McpToolAdapter {
-    // 实现 Rig 的 call 方法，内部调用 mcp_client.call_tool
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
-        self.mcp_client.call_tool(&self.name, input).await
+    fn name(&self) -> &str {
+        &self.name
+    }
+    
+    fn description(&self) -> &str {
+        &self.description
+    }
+    
+    fn parameters(&self) -> Value {
+        self.parameters.clone()
+    }
+    
+    async fn call(&self, input: Value) -> Result<Value, rig::completion::ToolError> {
+        let mut host = self.mcp_host.lock().await;
+        host.call_tool(&self.server_name, &self.name, input)
+            .await
+            .map_err(|e| rig::completion::ToolError::CallError(e.to_string()))
     }
 }
 ```
-**API 接口设计**：
-- **POST** `/api/chat`
-    - **Request**: `{ "message": "帮我找关于Rust的论文", "session_id": "..." }`
-    - **Response**: 
-        - **Stream (SSE)**: 为了后续体验，建议直接实现流式响应。
-        - **Event Types**: 
-            - `thought`: Agent 思考过程 ("正在检索 Zotero...")
-            - `tool_call`: 显示调用的工具参数
-            - `text`: 最终给用户的自然语言回复
-            - `data`: 结构化的文献数据
-**前端组件设计**：
-- `App.tsx`: 主布局。
-- `ChatWindow.tsx`: 消息列表 + 输入框。
-- `MessageItem.tsx`: 渲染不同类型的消息（支持 Markdown 渲染文献卡片）。
+
+#### System Prompt 优化
+```rust
+// crates/xuan-agent/src/agent.rs
+
+const SYSTEM_PROMPT: &str = r#"
+你是一个专业的科研助手 XuanAgent。
+
+你的职责是：
+1. 帮助用户检索和管理学术文献
+2. 辅助用户进行学术写作
+3. 回答科研相关的问题
+
+你拥有以下工具：
+- library_search: 搜索文献库（支持 Zotero、EndNote、Mendeley 等多种文献管理工具）
+- library_add: 添加新文献到文献库
+- library_export: 导出文献列表
+
+使用规则：
+1. 当用户要求搜索文献时，使用 library_search 工具
+2. 如果没有找到结果，明确告知用户，不要编造
+3. 提供准确、有用的科研建议
+4. 用专业但友好的语气回复
+
+现在，请帮助用户解决他们的科研问题。
+"#;
+```
+
+### 3. CLI 增强功能
+
+```bash
+# 文献检索
+$ xuan-agent-cli chat "帮我找关于 Rust 的论文"
+正在搜索文献库...
+找到 3 篇相关文献：
+1. "Rust Programming Language" (2023)
+2. "Systems Programming in Rust" (2022)
+3. "Memory Safety in Rust" (2021)
+
+# 会话管理
+$ xuan-agent-cli --session my-research chat "继续上次的话题"
+
+# 调试模式
+$ xuan-agent-cli --debug chat "测试消息"
+[DEBUG] Loading config from .env
+[DEBUG] Connecting to Library MCP
+[DEBUG] Sending message to LLM
+```
+
+### 4. 交付物
+
+- ✅ **v0.1.0 Alpha**: 能与文献管理 MCP 通信的 CLI 工具（以 Zotero 为示例）
+- ✅ MCP Host 基础框架
+- ✅ 基础的对话能力
+- ✅ 工具调用能力
+- ✅ 集成测试通过
+
 ---
-### 四、 技术风险与应对预案
+
+## 四、技术风险与应对预案
+
 | 风险点 | 可能的影响 | 应对预案 |
 | :--- | :--- | :--- |
-| **Zotero MCP 兼容性** | 现有开源 Zotero MCP 可能与最新 Zotero 版本不兼容 | **Plan A**: 寻找 Fork 版本；<br>**Plan B**: 自己写一个极简的 MCP Server，直接读 Zotero 的 SQLite 数据库 (`zotero.sqlite`)。 |
+| **文献管理 MCP 兼容性** | 现有开源文献管理 MCP 可能与最新版本不兼容 | **Plan A**: 寻找 Fork 版本或替代方案；<br>**Plan B**: 自己实现 MCP Server，支持多种文献管理工具（Zotero、EndNote、Mendeley 等）。 |
 | **Rig 框架限制** | Rig 对 Tool 的定义可能与 MCP Schema 有差异 | 在 `McpToolAdapter` 层做 Schema 转换映射。 |
-| **LLM 幻觉** | Agent 在没有结果时编造文献 | Prompt 强制要求“若无搜索结果，必须明确告知，不可编造”，并在 Tool Result 中加入元数据校验。 |
+| **LLM 输出不稳定** | Agent 在没有结果时编造文献 | Prompt 强制要求"若无搜索结果，必须明确告知，不可编造"，并在 Tool Result 中加入元数据校验。 |
+| **配置管理复杂** | 多个 AI Provider 的配置管理复杂 | 提供清晰的 .env.example 模板，实现配置验证和友好的错误提示。 |
+| **异步运行时问题** | Tokio 异步运行时与 MCP 进程通信的集成 | 使用 `tokio::process` 进行异步进程管理，确保正确的生命周期管理。 |
+
 ---
-### 五、 开发环境准备清单
-**开发者机器需提前安装**：
-1.  **Rust**: `rustup` (latest stable)
-2.  **Node.js**: v18+ (用于运行 Zotero MCP 和前端)
-3.  **Zotero**: 桌面客户端，并安装 Better BibTeX 插件（推荐）
-4.  **IDE**: VS Code (推荐插件: rust-analyzer, CodeLLDB)
-**项目配置文件**：
-创建 `.env` 文件：
-```ini
-# LLM Configuration
-OPENAI_API_KEY=sk-xxxxx
-OPENAI_MODEL=gpt-4o
-# Zotero MCP Configuration
-ZOTERO_MCP_CMD=node /path/to/zotero-mcp/dist/index.js # 或 Python 命令
+
+## 五、开发环境准备清单
+
+### 必需软件
+
+1. **Rust**: `rustup` (latest stable)
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   rustc --version  # 确保版本 >= 1.70
+   ```
+
+2. **Node.js**: v18+ (用于运行文献管理 MCP，以 Zotero MCP 为示例)
+   ```bash
+   # 使用 nvm 安装
+   nvm install 18
+   nvm use 18
+   node --version
+   ```
+
+3. **文献管理工具**: 桌面客户端（可选，以 Zotero 为示例）
+   - Zotero: 安装 Better BibTeX 插件（推荐）
+   - 或其他文献管理工具: EndNote、Mendeley、Papers 等
+   - 记录文献管理工具的数据目录路径
+
+4. **IDE**: VS Code (推荐)
+   - 插件: rust-analyzer
+   - 插件: CodeLLDB
+   - 插件: Even Better TOML
+
+### 项目初始化
+
+```bash
+# 1. 创建项目目录
+mkdir xuan-agent
+cd xuan-agent
+
+# 2. 初始化 workspace
+cat > Cargo.toml << EOF
+[workspace]
+members = [
+    "crates/xuan-agent",
+    "crates/xuan-agent-cli",
+]
+resolver = "2"
+EOF
+
+# 3. 创建 lib crate
+cargo new --lib crates/xuan-agent
+
+# 4. 创建 CLI crate
+cargo new crates/xuan-agent-cli
+
+# 5. 创建配置文件
+cp .env.example .env
+# 编辑 .env，填入你的 API keys
+
+# 6. 验证编译
+cargo build
+cargo test
 ```
+
 ---
-### 六、 演示流程脚本
-**Sprint 2 结束时的演示场景**：
-1.  **启动**：运行 `cargo run`，后端启动并自动拉起 Zotero MCP 进程。
-2.  **交互**：
-    - 用户在前端输入：“*你好，我是研究计算生物学的。*”
-    - Agent 回复：“*你好！我是你的科研助手。我可以帮你检索文献或辅助写作。*”
-    - 用户输入：“*帮我查一下我库里关于‘蛋白质折叠’的最新论文，只要是 2023 年以后的。*”
-3.  **后台逻辑**：
-    - Agent 分析意图 -> 决定调用 `zotero_search` -> 构造参数 `{"query": "蛋白质折叠", "year": ">2023"}`。
-    - MCP Host 发送 JSON-RPC 请求给 Zotero MCP。
-    - Zotero MCP 返回 5 条结果。
-4.  **结果展示**：
-    - 前端界面显示 Agent 回复：“*我为你找到了 5 篇相关文献，列表如下：*”
-    - 下方展示 5 张文献卡片，包含标题、摘要摘要、DOI 链接。
+
+## 六、演示流程脚本
+
+### Sprint 2 结束时的演示场景
+
+#### 场景 1: 基础对话
+```bash
+$ cargo run --bin xuan-agent-cli
+XuanAgent CLI v0.1.0
+输入 'quit' 退出，输入 'help' 查看帮助
+
+> 你好
+你好！我是 XuanAgent，你的科研助手。我可以帮你：
+- 检索和管理文献
+- 辅助学术写作
+- 回答科研问题
+
+有什么我可以帮你的吗？
+
+> quit
+再见！
+```
+
+#### 场景 2: 文献检索
+```bash
+$ cargo run --bin xuan-agent-cli
+XuanAgent CLI v0.1.0
+
+> 帮我查一下关于'蛋白质折叠'的最新论文
+正在搜索文献库...
+
+我为你找到了 3 篇相关文献：
+
+1. **AlphaFold2: Using AI to predict protein structure**
+   - 作者: Jumper, J., et al.
+   - 年份: 2021
+   - 期刊: Nature
+   
+2. **Deep learning for protein folding**
+   - 作者: Baek, M., et al.
+   - 年份: 2021
+   - 期刊: Science
+   
+3. **Computational methods for protein structure prediction**
+   - 作者: Pearce, R., et al.
+   - 年份: 2022
+   - 期刊: Nature Methods
+
+需要我详细介绍其中某篇文献吗？
+
+> quit
+再见！
+```
+
+#### 场景 3: 错误处理
+```bash
+$ cargo run --bin xuan-agent-cli
+XuanAgent CLI v0.1.0
+
+> 帮我找关于'不存在的主题xyz123'的论文
+正在搜索文献库...
+
+抱歉，我没有找到关于'不存在的主题xyz123'的相关文献。
+
+建议：
+1. 尝试使用更通用的关键词
+2. 检查拼写是否正确
+3. 确认文献库中是否有相关文献
+
+> quit
+再见！
+```
+
 ---
-**下一步行动**：建议立即执行 **T1.1**，搭建 Rust Workspace，并定义好 `mcp-host` 的基础 trait 接口。这将是整个系统的基石。
+
+## 七、下一步行动
+
+### 立即启动 P0-Sprint 1
+
+#### Day 1: 项目初始化
+```bash
+# 1. 创建项目
+mkdir xuan-agent && cd xuan-agent
+
+# 2. 初始化 workspace
+cargo init --name xuan-agent
+
+# 3. 创建 crates
+cargo new --lib crates/xuan-agent
+cargo new crates/xuan-agent-cli
+
+# 4. 配置 workspace
+# 编辑 Cargo.toml
+
+# 5. 创建配置文件
+cp .env.example .env
+
+# 6. 验证编译
+cargo build
+```
+
+#### Day 2-3: 核心库实现
+- 实现 `XuanAgent` 结构体
+- 集成 Rig 框架
+- 实现配置管理
+
+#### Day 4-5: CLI 工具实现
+- 实现交互式 CLI
+- 添加基础命令
+- 实现对话循环
+
+#### Day 6-7: 测试与文档
+- 编写单元测试
+- 编写 README
+- 准备 Sprint 1 演示
+
+### 成功标准
+- ✅ 能够编译和运行
+- ✅ 能够进行基础对话
+- ✅ 配置管理正常工作
+- ✅ 基础测试通过
+- ✅ 文档完整
+
+---
+
+**预期成果**：在 2 周内完成基础框架搭建，能够运行简单的对话 Demo，为后续 MCP 集成和功能扩展奠定坚实基础。
