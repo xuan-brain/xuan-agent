@@ -3,17 +3,15 @@
 //! 定义文献、分块和搜索结果的数据结构
 
 use serde::{Deserialize, Serialize};
-use surrealdb_types::{RecordId, SurrealValue};
 
 /// 文献元数据
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Paper {
-    /// 唯一标识符
+    /// 唯一标识符 (格式: "paper:uuid")
     pub id: String,
     /// 标题
     pub title: String,
     /// 摘要
-    #[serde(rename = "abstract")]
     pub abstract_text: String,
     /// 作者列表
     pub authors: Vec<String>,
@@ -34,11 +32,11 @@ pub struct Paper {
 /// 文献内容分块
 ///
 /// 用于向量检索和语义搜索
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Chunk {
-    /// 唯一标识符
+    /// 唯一标识符 (格式: "chunk:uuid")
     pub id: String,
-    /// 所属文献 ID
+    /// 所属文献 ID (格式: "paper:uuid")
     pub paper_id: String,
     /// 分块内容
     pub content: String,
@@ -53,7 +51,7 @@ pub struct Chunk {
 }
 
 /// 分块类型
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ChunkType {
     /// 标题
     Title,
@@ -112,17 +110,18 @@ pub struct SearchResult {
 }
 
 /// 简化的文献信息（用于搜索结果）
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaperInfo {
     pub id: String,
     pub title: String,
     pub authors: Vec<String>,
     pub year: Option<i32>,
     pub journal: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// 简化的分块信息（用于搜索结果）
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkInfo {
     pub id: String,
     pub content: String,
@@ -132,7 +131,7 @@ pub struct ChunkInfo {
 }
 
 /// 统计结果包装器
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CountResult {
     pub count: u64,
 }
@@ -145,6 +144,20 @@ impl From<Paper> for PaperInfo {
             authors: paper.authors,
             year: paper.year,
             journal: paper.journal,
+            created_at: Some(paper.created_at),
+        }
+    }
+}
+
+impl From<&Paper> for PaperInfo {
+    fn from(paper: &Paper) -> Self {
+        Self {
+            id: paper.id.clone(),
+            title: paper.title.clone(),
+            authors: paper.authors.clone(),
+            year: paper.year,
+            journal: paper.journal.clone(),
+            created_at: Some(paper.created_at),
         }
     }
 }
@@ -154,6 +167,18 @@ impl From<Chunk> for ChunkInfo {
         Self {
             id: chunk.id,
             content: chunk.content,
+            chunk_index: chunk.chunk_index,
+            page_number: chunk.page_number,
+            chunk_type: chunk.chunk_type,
+        }
+    }
+}
+
+impl From<&Chunk> for ChunkInfo {
+    fn from(chunk: &Chunk) -> Self {
+        Self {
+            id: chunk.id.clone(),
+            content: chunk.content.clone(),
             chunk_index: chunk.chunk_index,
             page_number: chunk.page_number,
             chunk_type: chunk.chunk_type,

@@ -79,17 +79,40 @@ impl LlmService {
             stream: false,
         };
 
-        let response = self
+        let http_response = self
             .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.config.api_key))
             .json(&request)
             .send()
-            .await?
+            .await?;
 
-            .json::<ChatResponse>()
+        let status = http_response.status();
+
+        // 先尝试读取原始响应文本，用于错误处理
+        let response_text = http_response
+            .text()
             .await
-            .map_err(|e| crate::Error::Llm(format!("解析响应失败: {}", e)))?;
+            .map_err(|e| crate::Error::Llm(format!("读取响应失败: {}", e)))?;
+
+        // 如果状态码不是成功，返回错误信息
+        if !status.is_success() {
+            return Err(crate::Error::Llm(format!(
+                "API 错误 ({}): {}",
+                status,
+                response_text
+            )));
+        }
+
+        // 尝试解析 JSON
+        let response: ChatResponse = serde_json::from_str(&response_text)
+            .map_err(|e| {
+                crate::Error::Llm(format!(
+                    "解析响应失败 (原始响应: {}): {}",
+                    response_text.chars().take(500).collect::<String>(),
+                    e
+                ))
+            })?;
 
         if let Some(choice) = response.choices.first() {
             Ok(choice.message.content.clone())
@@ -117,17 +140,40 @@ impl LlmService {
             stream: false,
         };
 
-        let response = self
+        let http_response = self
             .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.config.api_key))
             .json(&request)
             .send()
-            .await?
+            .await?;
 
-            .json::<ChatResponse>()
+        let status = http_response.status();
+
+        // 先尝试读取原始响应文本，用于错误处理
+        let response_text = http_response
+            .text()
             .await
-            .map_err(|e| crate::Error::Llm(format!("解析响应失败: {}", e)))?;
+            .map_err(|e| crate::Error::Llm(format!("读取响应失败: {}", e)))?;
+
+        // 如果状态码不是成功，返回错误信息
+        if !status.is_success() {
+            return Err(crate::Error::Llm(format!(
+                "API 错误 ({}): {}",
+                status,
+                response_text
+            )));
+        }
+
+        // 尝试解析 JSON
+        let response: ChatResponse = serde_json::from_str(&response_text)
+            .map_err(|e| {
+                crate::Error::Llm(format!(
+                    "解析响应失败 (原始响应: {}): {}",
+                    response_text.chars().take(500).collect::<String>(),
+                    e
+                ))
+            })?;
 
         if let Some(choice) = response.choices.first() {
             Ok(choice.message.content.clone())

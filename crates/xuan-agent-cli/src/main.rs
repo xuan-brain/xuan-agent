@@ -207,8 +207,9 @@ async fn run_import(file: String) -> anyhow::Result<()> {
         doc.text.clone()
     };
 
+    let paper_uuid = uuid::Uuid::new_v4().to_string();
     let paper = Paper {
-        id: format!("paper:{}", uuid::Uuid::new_v4()),
+        id: format!("paper:{}", paper_uuid),
         title,
         abstract_text,
         authors: vec!["Unknown".to_string()],
@@ -256,8 +257,9 @@ async fn run_import(file: String) -> anyhow::Result<()> {
             }
         };
 
+        let chunk_uuid = uuid::Uuid::new_v4().to_string();
         chunks.push(Chunk {
-            id: format!("chunk:{}", uuid::Uuid::new_v4()),
+            id: format!("chunk:{}", chunk_uuid),
             paper_id: paper_id.clone(),
             content: content.clone(),
             chunk_index: idx,
