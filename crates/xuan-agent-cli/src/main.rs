@@ -16,8 +16,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 启动交互式对话模式
-    Chat,
+    /// 启动对话模式（可传入消息直接发送，或进入交互模式）
+    Chat {
+        /// 要发送的消息（可选，不提供则进入交互模式）
+        message: Option<String>,
+    },
     /// 数据库操作
     Db {
         #[command(subcommand)]
@@ -65,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Chat => run_chat().await,
+        Commands::Chat { message } => run_chat(message).await,
         Commands::Db { db_command } => run_db_command(db_command).await,
         Commands::Import { file } => run_import(file).await,
         Commands::Search { query, limit } => run_search(query, limit).await,
@@ -73,12 +76,27 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn run_chat() -> anyhow::Result<()> {
+async fn run_chat(message: Option<String>) -> anyhow::Result<()> {
     use std::io::{BufRead, Write};
 
     let config = Config::from_env()?;
     let mut agent = XuanAgent::new(config).await?;
 
+    // 如果提供了消息参数，直接发送并退出
+    if let Some(msg) = message {
+        match agent.chat(&msg).await {
+            Ok(response) => {
+                println!("{}", response);
+            }
+            Err(e) => {
+                eprintln!("错误: {}", e);
+                return Err(e.into());
+            }
+        }
+        return Ok(());
+    }
+
+    // 否则进入交互模式
     println!("XuanAgent CLI v0.1.0 - 交互式对话模式");
     println!("输入 'quit' 退出，输入 'help' 查看帮助\n");
 
