@@ -25,6 +25,7 @@
 //! ```
 
 pub mod agent;
+pub mod classification;
 pub mod config;
 pub mod error;
 pub mod llm;
@@ -35,6 +36,7 @@ pub mod pdf;
 
 // Re-export commonly used types
 pub use agent::XuanAgent;
+pub use classification::{Tag, TagCategory, TaggingService};
 pub use config::{AiProviderConfig, Config, DbConfig, SystemPromptConfig};
 pub use error::{Error, Result};
 pub use storage::{Chunk, EmbeddingService, Paper, SearchResult, SurrealDBStorage};
