@@ -2,6 +2,7 @@
 members = [
     "crates/xuan-agent",
     "crates/xuan-agent-cli",
+    "crates/xuan-agent-web",
     "mcp-servers/mcp-server-reading",
 ]
 resolver = "2"
@@ -45,3 +46,11 @@ jsonrpc-core = "18"
 
 # PDF 处理
 pdf-extract = "0.7"
+
+# Web 框架
+axum = "0.7"
+tower = "0.4"
+tower-http = "0.5"
+
+# 异步 traits
+async-trait = "0.1"
