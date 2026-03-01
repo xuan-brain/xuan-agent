@@ -2,6 +2,7 @@
 members = [
     "crates/xuan-agent",
     "crates/xuan-agent-cli",
+    "mcp-servers/mcp-server-reading",
 ]
 resolver = "2"
 
@@ -38,3 +39,9 @@ surrealdb = "3"
 
 # 向量与相似度计算
 ndarray = "0.15"
+
+# JSON-RPC
+jsonrpc-core = "18"
+
+# PDF 处理
+pdf-extract = "0.7"

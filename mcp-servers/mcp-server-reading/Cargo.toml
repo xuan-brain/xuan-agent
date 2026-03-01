@@ -1,0 +1,28 @@
+[package]
+name = "mcp-server-reading"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# MCP SDK
+jsonrpc-core = "18.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# 异步运行时
+tokio = { workspace = true }
+
+# 错误处理
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# 日志
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# PDF 解析
+pdf-extract = "0.7"
+
+# 向量和相似度计算
+ndarray = { workspace = true }

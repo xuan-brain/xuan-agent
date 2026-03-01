@@ -2,8 +2,8 @@ use std::path::Path;
 
 use chrono::Utc;
 use clap::{Parser, Subcommand};
-use xuan_agent::storage::{Paper, SurrealDBStorage};
-use xuan_agent::{Config, XuanAgent};
+use xuan_agent::storage::{Chunk, ChunkType, EmbeddingService, Paper, SurrealDBStorage};
+use xuan_agent::{Config, PdfParser, PaperChunker, XuanAgent};
 
 #[derive(Parser)]
 #[command(name = "xuan-agent-cli")]
@@ -167,23 +167,32 @@ async fn run_import(file: String) -> anyhow::Result<()> {
     }
 
     let config = Config::from_env()?;
-    let db_config = config.db;
+    let db_config = config.db.clone();
 
     println!("正在连接数据库...");
     let storage = SurrealDBStorage::connect(&db_config).await?;
 
     println!("正在解析文件: {}", file);
 
-    // 简化实现：从文件名生成文献信息
-    let filename = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("unknown");
+    // 解析 PDF
+    let doc = PdfParser::parse(&file)?;
+    println!("✅ PDF 解析成功 ({} 页)", doc.page_count);
+
+    // 提取标题（优先使用文件名）
+    let title = PdfParser::extract_title_from_filename(&file)
+        .unwrap_or_else(|| "Unknown Title".to_string());
+
+    // 简单摘要：取前500字符
+    let abstract_text = if doc.text.len() > 500 {
+        format!("{}...", doc.text.chars().take(500).collect::<String>())
+    } else {
+        doc.text.clone()
+    };
 
     let paper = Paper {
         id: format!("paper:{}", uuid::Uuid::new_v4()),
-        title: filename.to_string(),
-        abstract_text: format!("从文件 {} 导入的文献", filename),
+        title,
+        abstract_text,
         authors: vec!["Unknown".to_string()],
         year: None,
         journal: None,
@@ -197,8 +206,62 @@ async fn run_import(file: String) -> anyhow::Result<()> {
     let paper_id = storage.store_paper(paper.clone()).await?;
     println!("✅ 文献已保存: \"{}\" (ID: {})", paper.title, paper_id);
 
-    // TODO: 实现实际的 PDF 解析和向量化
-    println!("⚠️  PDF 解析和向量化功能待实现");
+    // 文献分块
+    println!("正在分块文献内容...");
+    let chunker = PaperChunker::default();
+    let text_chunks = chunker.chunk_by_paragraph(&doc.text);
+    println!("✅ 生成 {} 个分块", text_chunks.len());
+
+    // 创建向量化服务
+    println!("正在初始化向量化服务...");
+    let embedding_service = EmbeddingService::new(config.ai_provider.clone());
+    println!("✅ 向量化服务就绪 (维度: {})", embedding_service.embedding_dim);
+
+    // 存储分块（带向量化）
+    println!("正在向量化分块并存储...");
+    let mut chunks = Vec::new();
+    let mut embedded_count = 0;
+
+    for (idx, content) in text_chunks.iter().enumerate() {
+        // 自动检测分块类型
+        let chunk_type = ChunkType::from_text(content);
+
+        // 生成嵌入向量
+        let embedding = match embedding_service.embed(content).await {
+            Ok(emb) => {
+                embedded_count += 1;
+                Some(emb)
+            }
+            Err(e) => {
+                eprintln!("  警告: 分块 {} 向量化失败: {}", idx + 1, e);
+                None
+            }
+        };
+
+        chunks.push(Chunk {
+            id: format!("chunk:{}", uuid::Uuid::new_v4()),
+            paper_id: paper_id.clone(),
+            content: content.clone(),
+            chunk_index: idx,
+            embedding,
+            page_number: None,
+            chunk_type,
+        });
+
+        // 显示进度（每10个分块显示一次）
+        if (idx + 1) % 10 == 0 {
+            println!("  已处理 {}/{} 分块", idx + 1, text_chunks.len());
+        }
+    }
+
+    storage.store_chunks(chunks).await?;
+    println!("✅ 已存储 {} 个分块 ({} 个已向量化)", text_chunks.len(), embedded_count);
+
+    println!("\n📊 导入完成:");
+    println!("   标题: {}", paper.title);
+    println!("   页数: {}", doc.page_count);
+    println!("   分块: {}", text_chunks.len());
+    println!("   向量化: {}/{}", embedded_count, text_chunks.len());
 
     Ok(())
 }
